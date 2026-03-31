@@ -62,6 +62,11 @@ export function LibraryScreen({ stories, onSelectStory, onDeleteStory, onBack }:
                   })}
                   {!story.revealed && ' • Not revealed yet'}
                 </p>
+                {story.author && (
+                  <span className="author-tag">
+                    {story.author.emoji} {story.author.name}
+                  </span>
+                )}
               </div>
               <ChevronRight size={20} className="library-arrow" />
             </div>

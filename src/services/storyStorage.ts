@@ -1,8 +1,9 @@
 import { supabase } from '../lib/supabase'
-import type { Story } from '../types'
+import type { Author, Story } from '../types'
 
 const STORIES_KEY = 'storyTimeLibrary'
 const PENDING_KEY = 'pendingStory'
+const AUTHORS_KEY = 'storyTimeAuthors'
 
 // --- Helpers ---
 
@@ -25,6 +26,7 @@ function storyToRow(story: Story, userId: string) {
     panels: story.panels ?? [],
     revealed: story.revealed,
     created_at: story.createdAt,
+    author: story.author ?? null,
   }
 }
 
@@ -39,6 +41,7 @@ function rowToStory(row: any): Story {
     panels: row.panels ?? undefined,
     revealed: row.revealed,
     createdAt: row.created_at,
+    author: row.author ?? undefined,
   }
 }
 
@@ -234,6 +237,75 @@ export async function getFirstIncompleteProgress(): Promise<{ storyId: string; d
   } catch {
     return null
   }
+}
+
+// --- Sync dismissal ---
+
+export async function getSyncDismissed(): Promise<boolean> {
+  const userId = await getUserId()
+  if (userId && supabase) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('preferences')
+      .eq('id', userId)
+      .single()
+    if (!error && data) {
+      return (data.preferences as any)?.syncPromptDismissed === true
+    }
+  }
+  return localStorage.getItem('syncPromptDismissed') === '1'
+}
+
+export async function setSyncDismissed(): Promise<void> {
+  const userId = await getUserId()
+  if (userId && supabase) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('preferences')
+      .eq('id', userId)
+      .single()
+    const current = (data?.preferences as Record<string, unknown>) ?? {}
+    const { error } = await supabase
+      .from('profiles')
+      .update({ preferences: { ...current, syncPromptDismissed: true } })
+      .eq('id', userId)
+    if (!error) return
+  }
+  localStorage.setItem('syncPromptDismissed', '1')
+}
+
+// --- Authors ---
+
+export async function getAuthors(): Promise<Author[]> {
+  const userId = await getUserId()
+  if (userId && supabase) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('authors')
+      .eq('id', userId)
+      .single()
+    if (!error && data?.authors) {
+      return data.authors as Author[]
+    }
+  }
+  try {
+    const saved = localStorage.getItem(AUTHORS_KEY)
+    return saved ? JSON.parse(saved) : []
+  } catch {
+    return []
+  }
+}
+
+export async function saveAuthors(authors: Author[]): Promise<void> {
+  const userId = await getUserId()
+  if (userId && supabase) {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ authors })
+      .eq('id', userId)
+    if (!error) return
+  }
+  localStorage.setItem(AUTHORS_KEY, JSON.stringify(authors))
 }
 
 // --- Migration helpers ---

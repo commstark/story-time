@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { RecordingScreen } from './screens/RecordingScreen'
 import { ProcessingScreen } from './screens/ProcessingScreen'
 import { RevealScreen } from './screens/RevealScreen'
@@ -9,7 +9,7 @@ import { MigrationScreen } from './screens/MigrationScreen'
 import { AuthProvider, useAuthContext } from './contexts/AuthContext'
 import { supabase } from './lib/supabase'
 import * as storage from './services/storyStorage'
-import type { Story } from './types'
+import type { Author, Story } from './types'
 import './App.css'
 
 type Screen = 'home' | 'record' | 'processing' | 'reveal' | 'library' | 'view' | 'migration'
@@ -28,15 +28,24 @@ function AppContent() {
   const [showMigrationPrompt, setShowMigrationPrompt] = useState(false)
   const [migrating, setMigrating] = useState(false)
 
-  // Handle OAuth callback — clean the URL
+  // Author state
+  const [authors, setAuthors] = useState<Author[]>([])
+  const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(
+    () => localStorage.getItem('storyTimeSelectedAuthor')
+  )
+  const pendingAuthorRef = useRef<Author | null>(null)
+
+  // Handle OAuth callback — clean the URL after Supabase processes it
   useEffect(() => {
     if (window.location.hash?.includes('access_token') || window.location.search?.includes('code=')) {
-      // Supabase SDK will pick up the tokens automatically
-      window.history.replaceState({}, '', window.location.pathname)
+      const cleanup = setTimeout(() => {
+        window.history.replaceState({}, '', window.location.pathname)
+      }, 1000)
+      return () => clearTimeout(cleanup)
     }
   }, [])
 
-  // Load stories when auth state resolves
+  // Load stories and authors when auth state resolves
   const loadData = useCallback(async () => {
     setDataLoading(true)
     try {
@@ -46,7 +55,6 @@ function AppContent() {
       const pending = await storage.getPendingStory()
       if (pending) setPendingStory(pending)
 
-      // Check for incomplete progress
       const progress = await storage.getFirstIncompleteProgress()
       if (progress) {
         const incomplete = progress.data as Partial<Story>
@@ -56,8 +64,19 @@ function AppContent() {
           await storage.clearProgress(progress.storyId)
         }
       }
+
+      // Load authors
+      const loadedAuthors = await storage.getAuthors()
+      setAuthors(loadedAuthors)
+      setSelectedAuthorId(prev => {
+        if (loadedAuthors.length === 0) return null
+        if (prev && loadedAuthors.some(a => a.id === prev)) return prev
+        const firstId = loadedAuthors[0].id
+        localStorage.setItem('storyTimeSelectedAuthor', firstId)
+        return firstId
+      })
     } catch (err) {
-      console.error('Failed to load stories:', err)
+      console.error('Failed to load data:', err)
     }
     setDataLoading(false)
   }, [])
@@ -74,8 +93,9 @@ function AppContent() {
 
     const localStories = storage.getLocalLibrary()
     if (localStories.length > 0 && supabase) {
-      // User has local stories and is now signed in — offer migration
-      setShowMigrationPrompt(true)
+      storage.getSyncDismissed().then(dismissed => {
+        if (!dismissed) setShowMigrationPrompt(true)
+      })
     }
   }, [user, authLoading, dataLoading])
 
@@ -85,23 +105,59 @@ function AppContent() {
     console.log(`Migration complete: ${result.migrated} migrated, ${result.failed} failed`)
     setMigrating(false)
     setShowMigrationPrompt(false)
-    await loadData() // Refresh library
+    await loadData()
   }
 
   const dismissMigration = () => {
+    storage.setSyncDismissed()
     setShowMigrationPrompt(false)
   }
 
-  // --- Story handlers (same logic, now async-aware) ---
+  // --- Author handlers ---
+
+  const handleSelectAuthor = (id: string) => {
+    setSelectedAuthorId(id)
+    localStorage.setItem('storyTimeSelectedAuthor', id)
+  }
+
+  const handleAddAuthor = async (emoji: string, name: string) => {
+    const newAuthor: Author = { id: Date.now().toString(), emoji, name }
+    const updated = [...authors, newAuthor]
+    setAuthors(updated)
+    setSelectedAuthorId(newAuthor.id)
+    localStorage.setItem('storyTimeSelectedAuthor', newAuthor.id)
+    await storage.saveAuthors(updated)
+  }
+
+  const handleRemoveAuthor = async (id: string) => {
+    const updated = authors.filter(a => a.id !== id)
+    setAuthors(updated)
+    await storage.saveAuthors(updated)
+    if (selectedAuthorId === id) {
+      const newSelected = updated.length > 0 ? updated[0].id : null
+      setSelectedAuthorId(newSelected)
+      if (newSelected) localStorage.setItem('storyTimeSelectedAuthor', newSelected)
+      else localStorage.removeItem('storyTimeSelectedAuthor')
+    }
+  }
+
+  // --- Story handlers ---
+
+  const handleStartRecording = () => {
+    pendingAuthorRef.current = authors.find(a => a.id === selectedAuthorId) ?? null
+    setScreen('record')
+  }
 
   const handleRecordingComplete = (audioBlob: Blob) => {
     setCurrentStory({
       id: Date.now().toString(),
       audioBlob,
+      author: pendingAuthorRef.current ?? undefined,
       status: 'transcribing',
       revealed: false,
       createdAt: new Date().toISOString()
     })
+    pendingAuthorRef.current = null
     setScreen('processing')
   }
 
@@ -116,7 +172,6 @@ function AppContent() {
     setIncompleteStory(null)
     setCurrentStory(null)
 
-    // Clear all progress
     const progressKeys = await storage.getAllProgressKeys()
     for (const key of progressKeys) {
       await storage.clearProgress(key)
@@ -210,7 +265,6 @@ function AppContent() {
     )
   }
 
-  // If Supabase is configured but user is not logged in, show login
   if (supabase && !user) {
     return (
       <div className="app">
@@ -281,16 +335,20 @@ function AppContent() {
 
       {screen === 'home' && (
         <HomeScreen
-          onStartRecording={() => setScreen('record')}
+          onStartRecording={handleStartRecording}
           onReveal={handleReveal}
           onLibrary={() => setScreen('library')}
           onResumeIncomplete={handleResumeIncomplete}
-          onMigration={() => setScreen('migration')}
           onSignOut={signOut}
           hasPendingStory={!!pendingStory}
           hasIncompleteStory={!!incompleteStory}
           storyCount={library.length}
           user={user}
+          authors={authors}
+          selectedAuthorId={selectedAuthorId}
+          onSelectAuthor={handleSelectAuthor}
+          onAddAuthor={handleAddAuthor}
+          onRemoveAuthor={handleRemoveAuthor}
         />
       )}
       {screen === 'record' && (

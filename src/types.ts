@@ -1,3 +1,9 @@
+export interface Author {
+  id: string
+  emoji: string
+  name: string
+}
+
 export interface Story {
   id: string
   title?: string
@@ -10,6 +16,7 @@ export interface Story {
   error?: string
   revealed: boolean  // Pictures hidden until revealed
   createdAt: string
+  author?: Author
 }
 
 export interface StoryMoment {

@@ -102,3 +102,16 @@ CREATE POLICY "Users can update own progress"
   ON story_progress FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own progress"
   ON story_progress FOR DELETE USING (auth.uid() = user_id);
+
+-- ============================================================
+-- MIGRATION: Run these in Supabase SQL Editor after initial setup
+-- ============================================================
+
+-- Add user preferences (sync dismissal, future settings)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}';
+
+-- Add authors list (cross-device author selector)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS authors JSONB DEFAULT '[]';
+
+-- Add author snapshot on each story
+ALTER TABLE stories ADD COLUMN IF NOT EXISTS author JSONB DEFAULT NULL;

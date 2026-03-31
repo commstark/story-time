@@ -12,72 +12,110 @@ export function RecordingScreen({ onComplete, onCancel }: RecordingScreenProps) 
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
-  
+  const [interrupted, setInterrupted] = useState(false)
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<number | null>(null)
   const isCancellingRef = useRef(false)
+  const isUserStoppingRef = useRef(false)
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null)
+
+  const requestWakeLock = async () => {
+    if (!('wakeLock' in navigator)) return
+    try {
+      wakeLockRef.current = await navigator.wakeLock.request('screen')
+    } catch {
+      // Not supported (iPhone Safari) or denied — continue without it
+    }
+  }
+
+  const releaseWakeLock = () => {
+    wakeLockRef.current?.release().catch(() => {})
+    wakeLockRef.current = null
+  }
+
+  // Re-request wake lock when tab becomes visible mid-recording
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (
+        document.visibilityState === 'visible' &&
+        mediaRecorderRef.current?.state === 'recording'
+      ) {
+        requestWakeLock()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [])
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-      }
+      if (timerRef.current) clearInterval(timerRef.current)
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         mediaRecorderRef.current.stop()
       }
+      releaseWakeLock()
     }
   }, [])
 
   const startRecording = async () => {
+    isCancellingRef.current = false
+    isUserStoppingRef.current = false
+    setInterrupted(false)
+    chunksRef.current = []
+
     try {
-      // Reset cancelling flag
-      isCancellingRef.current = false
-      
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           sampleRate: 44100
-        } 
+        }
       })
-      
+
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus'
       })
-      
+
       mediaRecorderRef.current = mediaRecorder
-      chunksRef.current = []
 
       mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data)
-        }
+        if (e.data.size > 0) chunksRef.current.push(e.data)
       }
 
       mediaRecorder.onstop = () => {
         stream.getTracks().forEach(track => track.stop())
-        
-        // Only proceed to transcription if not cancelling
-        if (!isCancellingRef.current) {
-          const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' })
-          onComplete(audioBlob)
+        releaseWakeLock()
+
+        if (isCancellingRef.current) return
+
+        if (!isUserStoppingRef.current) {
+          // Unexpected stop (screen lock, backgrounded, OS killed stream)
+          setIsRecording(false)
+          setIsPaused(false)
+          setInterrupted(true)
+          if (timerRef.current) clearInterval(timerRef.current)
+          return
         }
+
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' })
+        onComplete(audioBlob)
       }
 
-      mediaRecorder.start(1000) // Collect data every second
+      mediaRecorder.start(1000)
       setIsRecording(true)
       setDuration(0)
-      
+      await requestWakeLock()
+
       timerRef.current = window.setInterval(() => {
         setDuration(d => {
-          const newDuration = d + 1
-          // Auto-stop at 5 minutes (300 seconds)
-          if (newDuration >= 300) {
+          const next = d + 1
+          if (next >= 300) {
             stopRecording()
             return 300
           }
-          return newDuration
+          return next
         })
       }, 1000)
 
@@ -89,12 +127,11 @@ export function RecordingScreen({ onComplete, onCancel }: RecordingScreenProps) 
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      isUserStoppingRef.current = true  // Must be set BEFORE .stop()
       mediaRecorderRef.current.stop()
       setIsRecording(false)
       setIsPaused(false)
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-      }
+      if (timerRef.current) clearInterval(timerRef.current)
     }
   }
 
@@ -102,9 +139,7 @@ export function RecordingScreen({ onComplete, onCancel }: RecordingScreenProps) 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.pause()
       setIsPaused(true)
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-      }
+      if (timerRef.current) clearInterval(timerRef.current)
     }
   }
 
@@ -112,15 +147,16 @@ export function RecordingScreen({ onComplete, onCancel }: RecordingScreenProps) 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
       mediaRecorderRef.current.resume()
       setIsPaused(false)
-      
+      requestWakeLock()
+
       timerRef.current = window.setInterval(() => {
         setDuration(d => {
-          const newDuration = d + 1
-          if (newDuration >= 300) {
+          const next = d + 1
+          if (next >= 300) {
             stopRecording()
             return 300
           }
-          return newDuration
+          return next
         })
       }, 1000)
     }
@@ -135,29 +171,20 @@ export function RecordingScreen({ onComplete, onCancel }: RecordingScreenProps) 
   }
 
   const confirmCancel = () => {
-    // Set flag to prevent onstop from calling onComplete
     isCancellingRef.current = true
-    
+
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      // Clear the onstop handler to prevent any processing
       const recorder = mediaRecorderRef.current
       recorder.onstop = null
-      
-      // Stop recording and clean up
       recorder.stop()
-      const stream = recorder.stream
-      stream.getTracks().forEach(track => track.stop())
-      
+      recorder.stream.getTracks().forEach(track => track.stop())
       setIsRecording(false)
       setIsPaused(false)
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-      }
+      if (timerRef.current) clearInterval(timerRef.current)
       chunksRef.current = []
     }
+    releaseWakeLock()
     setShowCancelConfirm(false)
-    
-    // Reset flag before calling onCancel
     isCancellingRef.current = false
     onCancel()
   }
@@ -203,6 +230,17 @@ export function RecordingScreen({ onComplete, onCancel }: RecordingScreenProps) 
               Try Again
             </button>
           </div>
+        ) : interrupted ? (
+          <div className="recording-interrupted">
+            <p>Recording interrupted — tap to restart</p>
+            <button
+              className="btn-record-main"
+              onClick={() => { setInterrupted(false); setDuration(0) }}
+            >
+              <Mic size={48} />
+            </button>
+            <p className="recording-hint">Your story was not saved</p>
+          </div>
         ) : !isRecording ? (
           <>
             <div className="recording-prompt">
@@ -226,8 +264,8 @@ export function RecordingScreen({ onComplete, onCancel }: RecordingScreenProps) 
               {formatDuration(duration)}
             </div>
             <div className="recording-controls">
-              <button 
-                className="btn-pause-resume" 
+              <button
+                className="btn-pause-resume"
                 onClick={isPaused ? resumeRecording : pauseRecording}
                 title={isPaused ? 'Resume' : 'Pause'}
               >

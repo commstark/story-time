@@ -1097,6 +1097,204 @@ body {
   font-size: 14px;
 }
 
+/* Author Selector */
+.author-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px;
+  scrollbar-width: none;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.author-selector::-webkit-scrollbar {
+  display: none;
+}
+
+.author-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-radius: 12px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  min-width: 64px;
+}
+
+.author-tile.selected {
+  border-color: var(--primary);
+  background: rgba(99, 102, 241, 0.15);
+}
+
+.author-tile:hover {
+  background: var(--surface-light);
+}
+
+.author-tile.selected:hover {
+  background: rgba(99, 102, 241, 0.2);
+}
+
+.author-emoji {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.author-name {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.author-tile.selected .author-name {
+  color: var(--text);
+}
+
+.author-remove {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface-light);
+  border: 1px solid var(--background);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.author-remove:hover {
+  background: var(--error);
+  color: white;
+}
+
+/* Desktop: show × only on hover */
+@media (hover: hover) {
+  .author-remove {
+    opacity: 0;
+  }
+  .author-tile:hover .author-remove {
+    opacity: 1;
+  }
+}
+
+/* Touch: always visible */
+@media (hover: none) {
+  .author-remove {
+    opacity: 0.8;
+  }
+}
+
+.author-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: 2px dashed var(--surface-light);
+  border-radius: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.author-add-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Author add dialog extras */
+.author-dialog .modal-actions {
+  flex-direction: row;
+  margin-top: 16px;
+}
+
+.author-dialog-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.author-dialog-emoji-btn {
+  width: 36px;
+  height: 36px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: var(--surface-light);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+}
+
+.author-dialog-emoji-btn.selected {
+  border-color: var(--primary);
+  background: rgba(99, 102, 241, 0.2);
+}
+
+.author-dialog input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface-light);
+  border: none;
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 16px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.author-dialog input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Author tag on library cards */
+.author-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Recording interrupted state */
+.recording-interrupted {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  text-align: center;
+}
+
+.recording-interrupted p {
+  color: var(--text-muted);
+  font-size: 16px;
+  max-width: 260px;
+}
+
 /* Migration Screen */
 .migration-screen {
   gap: 24px;
