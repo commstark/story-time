@@ -164,7 +164,7 @@ export async function getProgress(storyId: string): Promise<Partial<Story> | nul
       .from('story_progress')
       .select('progress_data')
       .eq('story_id', storyId)
-      .single()
+      .maybeSingle()
     if (!error && data) {
       return data.progress_data as Partial<Story>
     }
@@ -218,7 +218,7 @@ export async function getFirstIncompleteProgress(): Promise<{ storyId: string; d
       .from('story_progress')
       .select('story_id, progress_data')
       .limit(1)
-      .single()
+      .maybeSingle()
     if (!error && data) {
       return { storyId: data.story_id, data: data.progress_data as Partial<Story> }
     }
@@ -248,7 +248,7 @@ export async function getSyncDismissed(): Promise<boolean> {
       .from('profiles')
       .select('preferences')
       .eq('id', userId)
-      .single()
+      .maybeSingle()
     if (!error && data) {
       return (data.preferences as any)?.syncPromptDismissed === true
     }
@@ -263,7 +263,7 @@ export async function setSyncDismissed(): Promise<void> {
       .from('profiles')
       .select('preferences')
       .eq('id', userId)
-      .single()
+      .maybeSingle()
     const current = (data?.preferences as Record<string, unknown>) ?? {}
     const { error } = await supabase
       .from('profiles')
@@ -283,7 +283,7 @@ export async function getAuthors(): Promise<Author[]> {
       .from('profiles')
       .select('authors')
       .eq('id', userId)
-      .single()
+      .maybeSingle()
     if (!error && data?.authors) {
       return data.authors as Author[]
     }
