@@ -37,7 +37,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const imageBuffer = await imageResponse.arrayBuffer()
     console.log(`✓ Downloaded ${imageBuffer.byteLength} bytes`)
-    
+
+    // Reject corrupt/black images — real fal.ai images are 100KB+
+    const MIN_IMAGE_BYTES = 50_000
+    if (imageBuffer.byteLength < MIN_IMAGE_BYTES) {
+      console.error(`❌ Image too small (${imageBuffer.byteLength} bytes) — likely corrupt or blank`)
+      return res.status(422).json({
+        error: `Image too small (${imageBuffer.byteLength} bytes), likely corrupt`
+      })
+    }
+
     // Upload to Vercel Blob
     const filename = `story-${Date.now()}-${index}.jpg`
     console.log(`⬆️  Uploading to Vercel Blob as: ${filename}`)

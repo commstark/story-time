@@ -65,10 +65,11 @@ export function StoryViewScreen({ story, onBack, onRevealFromLibrary }: StoryVie
           {story.panels && story.panels.length > 0 ? (
             <>
               <div className="picture-display">
-                <img 
+                <img
                   src={story.panels[currentPanel].imageUrl}
                   alt={story.panels[currentPanel].caption}
                   className="picture-image"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.insertAdjacentHTML('beforeend', '<div style="display:flex;align-items:center;justify-content:center;height:300px;color:#999;font-size:14px">Image unavailable</div>') }}
                 />
                 <p className="picture-caption">{story.panels[currentPanel].caption}</p>
               </div>

@@ -51,10 +51,11 @@ export function RevealScreen({ story, onComplete }: RevealScreenProps) {
         </div>
         
         <div className="panel-image-container">
-          <img 
-            src={panel.imageUrl} 
+          <img
+            src={panel.imageUrl}
             alt={panel.caption}
             className="panel-image"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.insertAdjacentHTML('beforeend', '<div style="display:flex;align-items:center;justify-content:center;height:300px;color:#999;font-size:14px">Image unavailable</div>') }}
           />
         </div>
 
