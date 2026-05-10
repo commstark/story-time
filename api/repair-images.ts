@@ -100,7 +100,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Upload to Vercel Blob
         const filename = `story-${story.id}-repair-${panel.index}.jpg`
-        const blob = await put(filename, imgBuffer, { access: 'public', token: blobToken, contentType: 'image/jpeg' })
+        const blob = await put(filename, imgBuffer, { access: 'public', token: blobToken, contentType: 'image/jpeg', addRandomSuffix: true })
 
         panels[i] = { ...panel, imageUrl: blob.url }
         updated = true
