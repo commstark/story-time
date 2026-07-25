@@ -9,6 +9,7 @@ export interface Story {
   title?: string
   audioBlob?: Blob
   transcript?: string
+  rawTranscript?: string  // Full untrimmed Whisper output, before any processing
   cleanedTranscript?: string  // Your words, just cleaned up (no umms, no repeats)
   storyMoments?: StoryMoment[]
   panels?: StoryPanel[]

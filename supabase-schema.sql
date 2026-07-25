@@ -115,3 +115,6 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS authors JSONB DEFAULT '[]';
 
 -- Add author snapshot on each story
 ALTER TABLE stories ADD COLUMN IF NOT EXISTS author JSONB DEFAULT NULL;
+
+-- Add full untrimmed Whisper transcript (kept before any trimming/cleanup)
+ALTER TABLE stories ADD COLUMN IF NOT EXISTS raw_transcript TEXT;

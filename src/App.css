@@ -688,6 +688,13 @@ body {
   white-space: pre-wrap;
 }
 
+.transcript-note {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-bottom: 12px;
+}
+
 .story-pictures-view {
   flex: 1;
   display: flex;

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Book, Image, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Book, Image, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { Story } from '../types'
 
 interface StoryViewScreenProps {
@@ -8,7 +8,7 @@ interface StoryViewScreenProps {
   onRevealFromLibrary?: () => void
 }
 
-type ViewMode = 'story' | 'pictures'
+type ViewMode = 'story' | 'pictures' | 'transcript'
 
 export function StoryViewScreen({ story, onBack, onRevealFromLibrary }: StoryViewScreenProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('story')
@@ -39,6 +39,13 @@ export function StoryViewScreen({ story, onBack, onRevealFromLibrary }: StoryVie
           <Image size={18} />
           <span>Pictures</span>
         </button>
+        <button
+          className={`tab ${viewMode === 'transcript' ? 'active' : ''}`}
+          onClick={() => setViewMode('transcript')}
+        >
+          <FileText size={18} />
+          <span>Transcript</span>
+        </button>
       </div>
 
       {viewMode === 'story' ? (
@@ -46,6 +53,23 @@ export function StoryViewScreen({ story, onBack, onRevealFromLibrary }: StoryVie
           <div className="story-text">
             {story.cleanedTranscript || 'No story text available'}
           </div>
+        </div>
+      ) : viewMode === 'transcript' ? (
+        <div className="story-text-view">
+          {story.rawTranscript || story.transcript ? (
+            <>
+              <p className="transcript-note">
+                {story.rawTranscript
+                  ? 'The complete untrimmed transcript of your recording, exactly as spoken.'
+                  : 'The original transcript of your recording — trimmed to the story, but before any cleanup.'}
+              </p>
+              <div className="story-text">{story.rawTranscript || story.transcript}</div>
+            </>
+          ) : (
+            <div className="story-text">
+              No original transcript was saved for this story. Transcripts are kept for stories recorded after this feature was added.
+            </div>
+          )}
         </div>
       ) : !canViewPictures ? (
         <div className="story-pictures-locked">
