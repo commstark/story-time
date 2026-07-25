@@ -50,6 +50,7 @@ export async function processStory(
   try {
     // Step 1: Transcribe audio (or resume from saved transcript)
     let storyContent: string
+    let rawTranscript: string | undefined = story.rawTranscript
 
     if (story.transcript) {
       console.log('Resuming from saved transcript')
@@ -61,17 +62,17 @@ export async function processStory(
       }
 
       onStatus('transcribing')
-      const transcript = await transcribeAudio(openai, story.audioBlob)
+      rawTranscript = await transcribeAudio(openai, story.audioBlob)
 
-      await saveProgressData(storyId, { ...story, transcript, status: 'transcribing' })
+      await saveProgressData(storyId, { ...story, rawTranscript, status: 'transcribing' })
 
-      const lowerTranscript = transcript.toLowerCase()
+      const lowerTranscript = rawTranscript.toLowerCase()
       if (!lowerTranscript.includes(START_PHRASE)) {
         throw new Error('Story must start with "Once upon a time..."')
       }
 
-      storyContent = extractStoryContent(transcript)
-      await saveProgressData(storyId, { ...story, transcript: storyContent, status: 'transcribing' })
+      storyContent = extractStoryContent(rawTranscript)
+      await saveProgressData(storyId, { ...story, rawTranscript, transcript: storyContent, status: 'transcribing' })
     }
 
     // Step 2: Clean transcript (or resume from saved)
@@ -91,6 +92,7 @@ export async function processStory(
 
       await saveProgressData(storyId, {
         ...story,
+        rawTranscript,
         transcript: storyContent,
         title,
         cleanedTranscript,
@@ -111,6 +113,7 @@ export async function processStory(
 
       await saveProgressData(storyId, {
         ...story,
+        rawTranscript,
         transcript: storyContent,
         title,
         cleanedTranscript,
@@ -131,6 +134,7 @@ export async function processStory(
       ...story,
       audioBlob: undefined,
       title,
+      rawTranscript,
       transcript: storyContent,
       cleanedTranscript,
       storyMoments: moments,

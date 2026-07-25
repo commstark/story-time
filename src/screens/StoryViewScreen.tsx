@@ -56,12 +56,14 @@ export function StoryViewScreen({ story, onBack, onRevealFromLibrary }: StoryVie
         </div>
       ) : viewMode === 'transcript' ? (
         <div className="story-text-view">
-          {story.transcript ? (
+          {story.rawTranscript || story.transcript ? (
             <>
               <p className="transcript-note">
-                The original transcript of your recording, exactly as spoken — before any cleanup.
+                {story.rawTranscript
+                  ? 'The complete untrimmed transcript of your recording, exactly as spoken.'
+                  : 'The original transcript of your recording — trimmed to the story, but before any cleanup.'}
               </p>
-              <div className="story-text">{story.transcript}</div>
+              <div className="story-text">{story.rawTranscript || story.transcript}</div>
             </>
           ) : (
             <div className="story-text">
