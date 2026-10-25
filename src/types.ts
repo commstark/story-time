@@ -2,6 +2,7 @@ export interface Author {
   id: string
   emoji: string
   name: string
+  voiceId?: string  // ElevenLabs cloned voice used to narrate this author's stories
 }
 
 export interface Story {
