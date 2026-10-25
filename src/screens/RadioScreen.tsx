@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Play, Pause, SkipBack, SkipForward, Shuffle, Music } from 'lucide-react'
 import type { Author, Story } from '../types'
 import { ReadAlong } from '../components/ReadAlong'
+import { useWakeLock } from '../hooks/useWakeLock'
 import {
   getAlignment, getJingleUrl, getNarration, getNarrationStyle, isUnlockClip, unlockAudio, voiceForStory,
   type Alignment,
@@ -38,6 +39,11 @@ export function RadioScreen({ stories, authors, onBack }: RadioScreenProps) {
   const [error, setError] = useState<string | null>(null)
   const [alignment, setAlignment] = useState<Alignment | null>(null)
   const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+
+  // Held for the whole session, not just while audio plays, so the gaps between tracks don't drop it
+  const [userPaused, setUserPaused] = useState(false)
+  useWakeLock(phase !== 'idle' && !userPaused && !error)
 
   const orderRef = useRef(order)
   const posRef = useRef(pos)
@@ -69,11 +75,13 @@ export function RadioScreen({ stories, authors, onBack }: RadioScreenProps) {
 
     posRef.current = index
     phaseRef.current = nextPhase
+    setUserPaused(false)
     setPos(index)
     setPhase(nextPhase)
     setError(null)
     setAlignment(null)
     setCurrentTime(0)
+    setDuration(0)
 
     try {
       if (nextPhase === 'intro' || nextPhase === 'outro') {
@@ -127,8 +135,10 @@ export function RadioScreen({ stories, authors, onBack }: RadioScreenProps) {
       unlockAudio(audio)
       goTo(posRef.current)
     } else if (audio.paused) {
+      setUserPaused(false)
       audio.play().catch(() => {})
     } else {
+      setUserPaused(true)
       audio.pause()
     }
   }
@@ -169,8 +179,8 @@ export function RadioScreen({ stories, authors, onBack }: RadioScreenProps) {
   useEffect(() => {
     if (!('mediaSession' in navigator)) return
     const session = navigator.mediaSession
-    session.setActionHandler('play', () => audioRef.current?.play().catch(() => {}))
-    session.setActionHandler('pause', () => audioRef.current?.pause())
+    session.setActionHandler('play', () => { setUserPaused(false); audioRef.current?.play().catch(() => {}) })
+    session.setActionHandler('pause', () => { setUserPaused(true); audioRef.current?.pause() })
     session.setActionHandler('nexttrack', () => controlsRef.current.next())
     session.setActionHandler('previoustrack', () => controlsRef.current.previous())
     return () => {
@@ -213,6 +223,12 @@ export function RadioScreen({ stories, authors, onBack }: RadioScreenProps) {
     )
   }
 
+  const panels = story?.revealed ? story.panels ?? [] : []
+  const scene = phase === 'story' && duration > 0 && panels.length
+    ? Math.min(panels.length - 1, Math.floor((currentTime / duration) * panels.length))
+    : 0
+  const art = panels[scene]
+
   const phaseLabel = {
     idle: 'Ready when you are',
     intro: '🎵 Here comes a story…',
@@ -221,13 +237,17 @@ export function RadioScreen({ stories, authors, onBack }: RadioScreenProps) {
   }[phase]
 
   return (
-    <div className="screen radio-screen">
+    <div className={`screen radio-screen${phase === 'story' ? ' playing-story' : ''}`}>
+      {phase === 'story' && art && (
+        <div key={art.imageUrl} className="radio-backdrop" style={{ backgroundImage: `url(${art.imageUrl})` }} />
+      )}
       <audio
         ref={audioRef}
         onEnded={handleEnded}
         onPlay={e => { if (!isUnlockClip(e.currentTarget)) setPlaying(true) }}
         onPause={e => { if (!isUnlockClip(e.currentTarget)) setPlaying(false) }}
         onTimeUpdate={e => { if (phaseRef.current === 'story') setCurrentTime(e.currentTarget.currentTime) }}
+        onDurationChange={e => { if (phaseRef.current === 'story') setDuration(e.currentTarget.duration || 0) }}
         preload="auto"
       />
 
@@ -237,8 +257,8 @@ export function RadioScreen({ stories, authors, onBack }: RadioScreenProps) {
       </div>
 
       <div className="radio-now">
-        {story?.revealed && story.panels?.[0] ? (
-          <img src={story.panels[0].imageUrl} alt="" className="radio-art" />
+        {art ? (
+          <img key={art.imageUrl} src={art.imageUrl} alt="" className="radio-art" />
         ) : (
           <div className="radio-art library-thumbnail-hidden"><span>✨</span></div>
         )}
