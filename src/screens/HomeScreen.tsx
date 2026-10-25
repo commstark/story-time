@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Moon, Sparkles, Mic, BookOpen, RotateCcw, LogOut, Plus, X } from 'lucide-react'
+import { Moon, Sparkles, Mic, BookOpen, RotateCcw, LogOut, Plus, X, Radio, AudioLines } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import type { Author } from '../types'
 
@@ -12,6 +12,8 @@ interface HomeScreenProps {
   onStartRecording: () => void
   onReveal: () => void
   onLibrary: () => void
+  onRadio: () => void
+  onVoices: () => void
   onResumeIncomplete: () => void
   onSignOut: () => Promise<void>
   hasPendingStory: boolean
@@ -29,6 +31,8 @@ export function HomeScreen({
   onStartRecording,
   onReveal,
   onLibrary,
+  onRadio,
+  onVoices,
   onResumeIncomplete,
   onSignOut,
   hasPendingStory,
@@ -172,6 +176,18 @@ export function HomeScreen({
             <span>Story Library ({storyCount})</span>
           </button>
         )}
+
+        {storyCount > 0 && (
+          <button className="btn btn-radio" onClick={onRadio}>
+            <Radio size={24} />
+            <span>Story Radio</span>
+          </button>
+        )}
+
+        <button className="btn btn-library btn-voices" onClick={onVoices}>
+          <AudioLines size={20} />
+          <span>Narrator Voices</span>
+        </button>
       </div>
 
       <div className="home-hint">

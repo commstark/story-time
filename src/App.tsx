@@ -6,13 +6,15 @@ import { HomeScreen } from './screens/HomeScreen'
 import { LibraryScreen } from './screens/LibraryScreen'
 import { StoryViewScreen } from './screens/StoryViewScreen'
 import { MigrationScreen } from './screens/MigrationScreen'
+import { RadioScreen } from './screens/RadioScreen'
+import { VoicesScreen } from './screens/VoicesScreen'
 import { AuthProvider, useAuthContext } from './contexts/AuthContext'
 import { supabase } from './lib/supabase'
 import * as storage from './services/storyStorage'
 import type { Author, Story } from './types'
 import './App.css'
 
-type Screen = 'home' | 'record' | 'processing' | 'reveal' | 'library' | 'view' | 'migration'
+type Screen = 'home' | 'record' | 'processing' | 'reveal' | 'library' | 'view' | 'migration' | 'radio' | 'voices'
 
 function AppContent() {
   const { user, loading: authLoading, signInWithGoogle, signOut } = useAuthContext()
@@ -139,6 +141,12 @@ function AppContent() {
       if (newSelected) localStorage.setItem('storyTimeSelectedAuthor', newSelected)
       else localStorage.removeItem('storyTimeSelectedAuthor')
     }
+  }
+
+  const handleSetAuthorVoice = async (authorId: string, voiceId: string | undefined) => {
+    const updated = authors.map(a => (a.id === authorId ? { ...a, voiceId } : a))
+    setAuthors(updated)
+    await storage.saveAuthors(updated)
   }
 
   // --- Story handlers ---
@@ -338,6 +346,8 @@ function AppContent() {
           onStartRecording={handleStartRecording}
           onReveal={handleReveal}
           onLibrary={() => setScreen('library')}
+          onRadio={() => setScreen('radio')}
+          onVoices={() => setScreen('voices')}
           onResumeIncomplete={handleResumeIncomplete}
           onSignOut={signOut}
           hasPendingStory={!!pendingStory}
@@ -381,8 +391,23 @@ function AppContent() {
       {screen === 'view' && viewingStory && (
         <StoryViewScreen
           story={viewingStory}
+          authors={authors}
           onBack={() => setScreen('library')}
           onRevealFromLibrary={() => handleRevealFromLibrary(viewingStory.id)}
+        />
+      )}
+      {screen === 'radio' && (
+        <RadioScreen
+          stories={library}
+          authors={authors}
+          onBack={() => setScreen('home')}
+        />
+      )}
+      {screen === 'voices' && (
+        <VoicesScreen
+          authors={authors}
+          onSetAuthorVoice={handleSetAuthorVoice}
+          onBack={() => setScreen('home')}
         />
       )}
       {screen === 'migration' && (

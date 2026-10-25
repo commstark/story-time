@@ -49,7 +49,15 @@ VITE_OPENAI_API_KEY=sk-proj-...
 ```
 FAL_AI_API_KEY=<your-fal-api-key>
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
+ELEVENLABS_API_KEY=<your-elevenlabs-api-key>
 ```
+
+### Narration (ElevenLabs)
+- **`/api/narrate`** - Story narration (Flash v2.5 with per-character timestamps for read-along, or v3 with
+  GPT-inserted audio tags for "expressive"), GPT translation, and intro/outro jingles (sound-effects API).
+  Every result is cached in Vercel Blob under a per-key folder, so each story is generated once.
+- **`/api/voice`** - Instant Voice Cloning from an in-app recording, and credit usage.
+- Each author can have a cloned `voiceId` (stored in `profiles.authors`); stories are read in their author's voice.
 
 ### Local Development (`.env`)
 

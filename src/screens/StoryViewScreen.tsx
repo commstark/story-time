@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { Book, Image, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
-import type { Story } from '../types'
+import type { Author, Story } from '../types'
+import { StoryReader } from '../components/StoryReader'
 
 interface StoryViewScreenProps {
   story: Story
+  authors: Author[]
   onBack: () => void
   onRevealFromLibrary?: () => void
 }
 
 type ViewMode = 'story' | 'pictures' | 'transcript'
 
-export function StoryViewScreen({ story, onBack, onRevealFromLibrary }: StoryViewScreenProps) {
+export function StoryViewScreen({ story, authors, onBack, onRevealFromLibrary }: StoryViewScreenProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('story')
   const [currentPanel, setCurrentPanel] = useState(0)
   
@@ -49,11 +51,7 @@ export function StoryViewScreen({ story, onBack, onRevealFromLibrary }: StoryVie
       </div>
 
       {viewMode === 'story' ? (
-        <div className="story-text-view">
-          <div className="story-text">
-            {story.cleanedTranscript || 'No story text available'}
-          </div>
-        </div>
+        <StoryReader story={story} authors={authors} />
       ) : viewMode === 'transcript' ? (
         <div className="story-text-view">
           {story.rawTranscript || story.transcript ? (
