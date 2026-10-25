@@ -1480,8 +1480,49 @@ body {
   text-align: center;
 }
 
+.radio-screen.playing-story {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  position: relative;
+}
+
+.radio-screen > * {
+  position: relative;
+}
+
+.radio-screen > .radio-backdrop {
+  position: fixed;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(18px) brightness(0.45);
+  transform: scale(1.1);
+  opacity: 0.55;
+  animation: backdrop-fade 1.2s ease;
+  pointer-events: none;
+}
+
+@keyframes backdrop-fade {
+  from { opacity: 0; }
+  to { opacity: 0.55; }
+}
+
+.radio-art {
+  animation: backdrop-fade-art 0.8s ease;
+}
+
+@keyframes backdrop-fade-art {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .radio-text {
-  max-height: 50vh;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-mask-image: linear-gradient(transparent, black 12%, black 85%, transparent);
+  mask-image: linear-gradient(transparent, black 12%, black 85%, transparent);
 }
 
 .radio-queue {
@@ -1520,16 +1561,40 @@ body {
   flex: 1;
 }
 
-.read-along .word {
-  transition: color 0.15s, background 0.15s;
-  border-radius: 4px;
+.lyrics {
+  padding: 30vh 4px;
 }
 
-.read-along .word.spoken {
+.lyric-line {
+  font-size: 22px;
+  line-height: 1.45;
+  font-weight: 600;
+  margin-bottom: 22px;
   color: var(--text-muted);
+  opacity: 0.45;
+  transition: font-size 0.35s ease, opacity 0.35s ease, color 0.35s ease;
 }
 
-.read-along .word.active {
+.lyric-line.past {
+  opacity: 0.3;
+}
+
+.lyric-line.current {
+  font-size: 32px;
+  line-height: 1.35;
+  font-weight: 800;
+  color: var(--text);
+  opacity: 1;
+  letter-spacing: 0.01em;
+}
+
+.lyric-line .word {
+  border-radius: 6px;
+  padding: 0 2px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.lyric-line .word.active {
   background: var(--secondary);
   color: #0f172a;
 }

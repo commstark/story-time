@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Play, Pause, Languages } from 'lucide-react'
 import type { Author, Story } from '../types'
 import { ReadAlong } from './ReadAlong'
+import { useWakeLock } from '../hooks/useWakeLock'
 import {
   LANGUAGES, getAlignment, getNarration, getNarrationStyle, translateStory, unlockAudio, isUnlockClip, voiceForStory,
   type Alignment,
@@ -23,6 +24,8 @@ export function StoryReader({ story, authors }: StoryReaderProps) {
   const [playing, setPlaying] = useState(false)
   const [alignment, setAlignment] = useState<Alignment | null>(null)
   const [currentTime, setCurrentTime] = useState(0)
+
+  useWakeLock(playing)
 
   const stopListening = () => {
     runRef.current++
