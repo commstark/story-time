@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Mic, Square, Check } from 'lucide-react'
 import type { Author } from '../types'
+import { VoicePicker } from '../components/VoicePicker'
 import {
-  cloneVoice, getDefaultVoiceId, getNarrationStyle, getUsage, setDefaultVoiceId, setNarrationStyle,
-  type NarrationStyle, type Usage,
+  cloneVoice, getDefaultVoiceId, getNarrationStyle, getUsage, listVoices, setDefaultVoiceId, setNarrationStyle,
+  type NarrationStyle, type Usage, type Voice,
 } from '../services/narration'
 
 interface VoicesScreenProps {
@@ -136,6 +137,9 @@ function CloneRecorder({ author, onCloned, onCancel }: {
 
 export function VoicesScreen({ authors, onSetAuthorVoice, onBack }: VoicesScreenProps) {
   const [cloningFor, setCloningFor] = useState<string | null>(null)
+  const [pickingFor, setPickingFor] = useState<string | null>(null)
+  const [voices, setVoices] = useState<Voice[] | null>(null)
+  const [voicesError, setVoicesError] = useState<string | null>(null)
   const [style, setStyle] = useState<NarrationStyle>(getNarrationStyle)
   const [defaultVoice, setDefaultVoice] = useState<string | undefined>(getDefaultVoiceId)
   const [usage, setUsage] = useState<Usage | null>(null)
@@ -143,7 +147,20 @@ export function VoicesScreen({ authors, onSetAuthorVoice, onBack }: VoicesScreen
 
   useEffect(() => {
     getUsage().then(setUsage).catch(err => setUsageError(err.message))
+    listVoices().then(setVoices).catch(err => setVoicesError(err.message))
   }, [])
+
+  const voiceLabel = (voiceId: string | undefined) => {
+    if (!voiceId) return 'Storyteller voice'
+    const voice = voices?.find(v => v.voiceId === voiceId)
+    if (!voice) return '✓ Custom voice'
+    return voice.category === 'cloned' ? `✓ ${voice.name} (cloned)` : `✓ ${voice.name}`
+  }
+
+  const openPicker = (id: string | null) => {
+    setCloningFor(null)
+    setPickingFor(id)
+  }
 
   const chooseStyle = (next: NarrationStyle) => {
     setStyle(next)
@@ -155,8 +172,6 @@ export function VoicesScreen({ authors, onSetAuthorVoice, onBack }: VoicesScreen
     setDefaultVoiceId(voiceId)
   }
 
-  const clonedAuthors = authors.filter(a => a.voiceId)
-
   return (
     <div className="screen voices-screen">
       <div className="library-header">
@@ -166,7 +181,7 @@ export function VoicesScreen({ authors, onSetAuthorVoice, onBack }: VoicesScreen
 
       <section className="voices-section">
         <h3>Who reads the stories</h3>
-        <p className="voice-hint">Each story is read in its author's voice. Clone a voice once and every story by that author uses it.</p>
+        <p className="voice-hint">Each story is read in its author's voice. Pick a ready-made ElevenLabs voice, or clone your own once and every story by that author uses it.</p>
         {authors.length === 0 && (
           <p className="voice-hint">Add an author on the home screen first (like “Daddy” or “Mommy”).</p>
         )}
@@ -176,21 +191,33 @@ export function VoicesScreen({ authors, onSetAuthorVoice, onBack }: VoicesScreen
               <span className="author-emoji">{author.emoji}</span>
               <div className="voice-row-info">
                 <strong>{author.name}</strong>
-                <span className="voice-hint">{author.voiceId ? '✓ Their own cloned voice' : 'Storyteller voice'}</span>
+                <span className="voice-hint">{voiceLabel(author.voiceId)}</span>
               </div>
-              {cloningFor !== author.id && (
-                author.voiceId ? (
-                  <button className="btn-small" onClick={() => onSetAuthorVoice(author.id, undefined)}>Use storyteller</button>
-                ) : (
-                  <button className="btn-small" onClick={() => setCloningFor(author.id)}>Clone voice</button>
-                )
+              {cloningFor !== author.id && pickingFor !== author.id && (
+                <div className="voice-row-actions">
+                  <button className="btn-small" onClick={() => openPicker(author.id)}>Choose</button>
+                  <button className="btn-small" onClick={() => { setPickingFor(null); setCloningFor(author.id) }}>Clone</button>
+                </div>
               )}
             </div>
+            {pickingFor === author.id && (
+              <VoicePicker
+                voices={voices}
+                error={voicesError}
+                selectedVoiceId={author.voiceId}
+                onSelect={voiceId => onSetAuthorVoice(author.id, voiceId)}
+                onClose={() => setPickingFor(null)}
+              />
+            )}
             {cloningFor === author.id && (
               <CloneRecorder
                 author={author}
                 onCancel={() => setCloningFor(null)}
-                onCloned={voiceId => { onSetAuthorVoice(author.id, voiceId); setCloningFor(null) }}
+                onCloned={voiceId => {
+                  onSetAuthorVoice(author.id, voiceId)
+                  setCloningFor(null)
+                  listVoices.refresh().then(setVoices).catch(() => {})
+                }}
               />
             )}
           </div>
@@ -201,12 +228,21 @@ export function VoicesScreen({ authors, onSetAuthorVoice, onBack }: VoicesScreen
             <span className="author-emoji">📖</span>
             <div className="voice-row-info">
               <strong>Stories with no author</strong>
-              <select value={defaultVoice || ''} onChange={e => chooseDefault(e.target.value || undefined)}>
-                <option value="">Storyteller voice</option>
-                {clonedAuthors.map(a => <option key={a.id} value={a.voiceId}>{a.emoji} {a.name}'s voice</option>)}
-              </select>
+              <span className="voice-hint">{voiceLabel(defaultVoice)}</span>
             </div>
+            {pickingFor !== 'default' && (
+              <button className="btn-small" onClick={() => openPicker('default')}>Choose</button>
+            )}
           </div>
+          {pickingFor === 'default' && (
+            <VoicePicker
+              voices={voices}
+              error={voicesError}
+              selectedVoiceId={defaultVoice}
+              onSelect={chooseDefault}
+              onClose={() => setPickingFor(null)}
+            />
+          )}
         </div>
       </section>
 
