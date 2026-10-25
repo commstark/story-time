@@ -5,6 +5,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
  *
  * POST /api/voice { action: 'clone', name, audioBase64, mimeType, consent: true }
  *   → { voiceId }  Instant Voice Clone from a 1–2 minute recording
+ * POST /api/voice { action: 'list' }
+ *   → { voices: [{ voiceId, name, category, gender, accent, age, description, useCase, previewUrl }] }
  * POST /api/voice { action: 'usage' }
  *   → { used, limit, tier, resetsAt }  credits used this billing period
  *
@@ -36,6 +38,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const body = req.body || {}
 
   try {
+    if (body.action === 'list') {
+      const response = await fetch(`${ELEVENLABS_API}/voices`, { headers: { 'xi-api-key': elevenKey } })
+      if (!response.ok) throw new Error(`ElevenLabs returned ${response.status}: ${(await response.text()).slice(0, 200)}`)
+      const { voices } = await response.json()
+      return res.status(200).json({
+        voices: (voices || []).map((v: any) => ({
+          voiceId: v.voice_id,
+          name: v.name,
+          category: v.category,
+          gender: v.labels?.gender ?? null,
+          accent: v.labels?.accent ?? null,
+          age: v.labels?.age ?? null,
+          description: v.labels?.description ?? v.description ?? null,
+          useCase: v.labels?.use_case ?? null,
+          previewUrl: v.preview_url ?? null,
+        })),
+      })
+    }
+
     if (body.action === 'usage') {
       const response = await fetch(`${ELEVENLABS_API}/user/subscription`, { headers: { 'xi-api-key': elevenKey } })
       if (!response.ok) throw new Error(`ElevenLabs returned ${response.status}: ${(await response.text()).slice(0, 200)}`)

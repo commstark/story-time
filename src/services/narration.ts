@@ -122,6 +122,28 @@ export async function cloneVoice(name: string, recording: Blob): Promise<string>
   return voiceId
 }
 
+export interface Voice {
+  voiceId: string
+  name: string
+  category: string
+  gender: string | null
+  accent: string | null
+  age: string | null
+  description: string | null
+  useCase: string | null
+  previewUrl: string | null
+}
+
+export function listVoices(): Promise<Voice[]> {
+  return once('voices', () => post<{ voices: Voice[] }>('/api/voice', { action: 'list' }).then(r => r.voices))
+}
+
+// A new clone is missing from the cached list until it's fetched again
+listVoices.refresh = (): Promise<Voice[]> => {
+  cache.delete('voices')
+  return listVoices()
+}
+
 export function getUsage(): Promise<Usage> {
   return post<Usage>('/api/voice', { action: 'usage' })
 }
