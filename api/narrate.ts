@@ -186,6 +186,7 @@ async function jingle(env: Env, kind: string) {
   if (cached['.mp3']) return { audioUrl: cached['.mp3'], cached: true }
 
   const audio = await elevenLabsAudio(env, '/sound-generation', {
+    model_id: 'eleven_text_to_sound_v3',
     text: prompt,
     duration_seconds: 5,
     prompt_influence: 0.6,
